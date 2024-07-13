@@ -9,8 +9,8 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain.prompts import PromptTemplate
 
-database_uri = st.secrets["DATABASE_URI"]
-api_key = st.secrets["TOGETHER_API_KEY"]
+database_uri = os.environ["DATABASE_URI"]
+api_key = os.environ["TOGETHER_API_KEY"]
 
 db = SQLDatabase.from_uri(database_uri)
 
@@ -22,13 +22,20 @@ llm = ChatOpenAI(
 )
 
 ask_prompt = """
-    You are a PostgreSQL expert. Given an input question, first create a syntactically correct PostgreSQL query to run, then look at the results of the query and return the answer to the input question.
+    You are a PostgreSQL expert. Given an input question, first create a syntactically correct PostgreSQL query to run,
+    When your query involves specific names or locations, make sure to expand your search to include partial search and common abbreviations. Use a query that includes wildcards to cover all variations available.
+    Then look at the results of the query and return the answer to the input question.
     Unless the user specifies in the question a specific number of examples to obtain, query for at most {top_k} results using the LIMIT clause as per PostgreSQL. You can order the results to return the most informative data in the database.
     Never query for all columns from a table. You must query only the columns that are needed to answer the question. Wrap each column name in double quotes (") to denote them as delimited identifiers.
     Pay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.
     Pay attention to use CURRENT_DATE function to get the current date, if the question involves "today".
     
-    When your query involves specific names or locations, make sure to expand your search to include partial search and common abbreviations. Use a query that includes wildcards to cover all variations available.
+    When your query involves specific names or locations, expand your search to include partial searches and common abbreviations. Use a SQL query that includes wildcards to cover variations. Make sure to find matches where the search term appears as the first word, last word, or any word within the name.
+    Example SQL Query:
+    SELECT "phone", "website"
+    FROM accommodations
+    WHERE "name" LIKE '%Alila%' AND "name" LIKE '%Uluwatu%';
+    This query ensures that the search term "Alila Uluwatu" is matched whether it appears at the beginning, end, or anywhere within the name.
 
     Use the following format:
 
