@@ -5,9 +5,9 @@ from langchain_openai import ChatOpenAI
 from langchain.chains import create_sql_query_chain
 from operator import itemgetter
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
+from langchain.prompts import PromptTemplate
 
 database_uri = st.secrets["DATABASE_URI"]
 api_key = st.secrets["TOGETHER_API_KEY"]
@@ -17,7 +17,8 @@ db = SQLDatabase.from_uri(database_uri)
 llm = ChatOpenAI(
     base_url="https://api.together.xyz/v1",
     api_key=api_key,
-    model="mistralai/Mixtral-8x22B-Instruct-v0.1",
+    model="Qwen/Qwen2-72B-Instruct",
+    temperature=0,
 )
 
 ask_prompt = """
@@ -26,7 +27,8 @@ ask_prompt = """
     Never query for all columns from a table. You must query only the columns that are needed to answer the question. Wrap each column name in double quotes (") to denote them as delimited identifiers.
     Pay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.
     Pay attention to use CURRENT_DATE function to get the current date, if the question involves "today".
-    Pay attention for queries containing names or place identifiers, search for the closest matching results, allowing partial matches and common abbreviations.
+    
+    When your query involves specific names or locations, make sure to expand your search to include partial search and common abbreviations. Use a query that includes wildcards to cover all variations available.
 
     Use the following format:
 
@@ -37,6 +39,145 @@ ask_prompt = """
 
     Only use the following tables:
     {table_info}
+
+    --
+    -- Name: accommodation_faqs; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.accommodation_faqs (
+        id character varying(26) NOT NULL,
+        accommodation_id character varying(26),
+        question text NOT NULL,
+        answer text NOT NULL,
+        category character varying(50)
+    );
+
+
+    --
+    -- Name: accommodation_reviews; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.accommodation_reviews (
+        id character varying(26) NOT NULL,
+        accommodation_id character varying(26),
+        user_id character varying(26),
+        rating integer,
+        comment text,
+        created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    );
+
+
+    --
+    -- Name: accommodations; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.accommodations (
+        id character varying(26) NOT NULL,
+        name character varying(255) NOT NULL,
+        description text,
+        destination_id character varying(26),
+        address character varying(255),
+        phone character varying(20),
+        website character varying(255),
+        rating numeric(3,2)
+    );
+
+
+    --
+    -- Name: attraction_faqs; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.attraction_faqs (
+        id character varying(26) NOT NULL,
+        attraction_id character varying(26),
+        question text NOT NULL,
+        answer text NOT NULL,
+        category character varying(50)
+    );
+
+
+    --
+    -- Name: attraction_reviews; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.attraction_reviews (
+        id character varying(26) NOT NULL,
+        attraction_id character varying(26),
+        user_id character varying(26),
+        rating integer,
+        comment text,
+        created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    );
+
+
+    --
+    -- Name: attractions; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.attractions (
+        id character varying(26) NOT NULL,
+        name character varying(255) NOT NULL,
+        description text,
+        destination_id character varying(26),
+        address character varying(255),
+        phone character varying(20),
+        website character varying(255),
+        type character varying(50)
+    );
+
+
+    --
+    -- Name: destination_faqs; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.destination_faqs (
+        id character varying(26) NOT NULL,
+        destination_id character varying(26),
+        question text NOT NULL,
+        answer text NOT NULL,
+        category character varying(50)
+    );
+
+
+    --
+    -- Name: destination_reviews; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.destination_reviews (
+        id character varying(26) NOT NULL,
+        destination_id character varying(26),
+        user_id character varying(26),
+        rating integer,
+        comment text,
+        created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+    );
+
+
+    --
+    -- Name: destinations; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.destinations (
+        id character varying(26) NOT NULL,
+        name character varying(255) NOT NULL,
+        description text,
+        country character varying(255),
+        continent character varying(255),
+        city character varying(255)
+    );
+
+
+    --
+    -- Name: travel_tips; Type: TABLE; Schema: public; Owner: -
+    --
+
+    CREATE TABLE public.travel_tips (
+        id character varying(26) NOT NULL,
+        title character varying(255) NOT NULL,
+        content text,
+        destination_id character varying(26),
+        category character varying(50)
+    );
 
     Questions:{input}
 """
@@ -53,7 +194,7 @@ write_query = create_sql_query_chain(
 answer_prompt = PromptTemplate.from_template(
     """
         Given the following user question and corresponding SQL result, answer the user question to the best of your ability in Indonesian. Always respond in Indonesian. If there is no valid SQL query provided or the results are unexpected, acknowledge the input and provide a general response related to the topic in Indonesian.
-
+        
         Question: {question}
         SQL Query: {query}
         SQL Result: {result}
