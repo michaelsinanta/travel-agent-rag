@@ -9,8 +9,8 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain.prompts import PromptTemplate
 
-database_uri = os.environ["DATABASE_URI"]
-api_key = os.environ["TOGETHER_API_KEY"]
+database_uri = st.secrets["DATABASE_URI"]
+api_key = st.secrets["TOGETHER_API_KEY"]
 
 db = SQLDatabase.from_uri(database_uri)
 
