@@ -9,8 +9,8 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain.prompts import PromptTemplate
 
-database_uri = st.secrets["DATABASE_URI"]
-api_key = st.secrets["TOGETHER_API_KEY"]
+database_uri = os.environ["DATABASE_URI"]
+api_key = os.environ["TOGETHER_API_KEY"]
 
 db = SQLDatabase.from_uri(database_uri)
 
@@ -21,6 +21,7 @@ llm = ChatOpenAI(
     temperature=0,
 )
 
+# SQL Query Construction Prompt
 ask_prompt = """
     You are a PostgreSQL expert. Given an input question, first create a syntactically correct PostgreSQL query to run,
     When your query involves specific names or locations, make sure to expand your search to include partial search and common abbreviations. Use a query that includes wildcards to cover all variations available.
@@ -198,6 +199,7 @@ write_query = create_sql_query_chain(
     ),
 )
 
+# Answer Generation Prompt
 answer_prompt = PromptTemplate.from_template(
     """
         Given the following user question and corresponding SQL result, answer the user question to the best of your ability in Indonesian. Always respond in Indonesian. If there is no valid SQL query provided or the results are unexpected, acknowledge the input and provide a general response related to the topic in Indonesian.
